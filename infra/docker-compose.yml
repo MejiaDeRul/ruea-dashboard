@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  api:
+    build:
+      context: ../
+      dockerfile: infra/api.Dockerfile
+    environment:
+      - DATA_DIR=/data
+      - DB_PATH=/data/current/duckdb.db
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
+      - APP_NAME=Portal Alcaldia API
+    volumes:
+      - ../data:/data
+      - ../api:/app/api
+    working_dir: /app/api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers=2
+    ports: ["8000:8000"]

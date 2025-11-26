@@ -1,0 +1,70 @@
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.tmp
+*.log
+*.bak
+*.lock
+
+# --- Global envs (no subir credenciales) ---
+.env
+.env.*
+!.env.example
+
+# --- Node / Vite (root o subcarpetas) ---
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage*
+coverage.xml
+htmlcov/
+.cache/
+
+# --- Virtualenvs ---
+.venv/
+venv/
+
+# --- Proyecto API (FastAPI) ---
+api/.venv/
+api/.env
+api/.env.*
+!api/.env.example
+api/*.egg-info/
+api/.pytest_cache/
+api/.mypy_cache/
+api/.ruff_cache/
+api/.coverage
+
+# Artefactos de datos generados por el ETL
+api/data/current/
+api/data/staging/
+api/data/*.db
+api/data/*.duckdb
+api/data/*.sqlite
+api/data/*.parquet
+api/data/*.csv
+api/data/*.xlsx
+
+# --- Frontend (Vite React) ---
+dashboard-ruea/node_modules/
+dashboard-ruea/dist/
+dashboard-ruea/.env
+dashboard-ruea/.env.*
+!dashboard-ruea/.env.example
+dashboard-ruea/.vite/
+
+# --- Docker / Build ---
+docker/*.local.*
+*.tar

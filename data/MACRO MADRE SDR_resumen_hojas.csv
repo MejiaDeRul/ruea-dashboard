@@ -1,0 +1,7 @@
+hoja,fila_encabezado,filas_aprox,num_columnas,modulo_probable,primeras_columnas
+GENERAL,1,15,34,ruea,"CEDULA; NOMBRE COMPLETO; FECHA DE NACIMIENTO; EDAD; DIRECCION; LATITUD; LONGITUD; CORREGIMIENTO; VEREDA; TELEFONO; CORREO_ELECTRONICO; NIVEL_ESTUDIO; SEXO_BIO; 12. Información Poblacional [Discapacidad]; 12. Información Poblacional [Víctima del Conflicto]; 12. Información Poblacional [Población Campesina]; 12. Información Poblacional [Población Afrocolombiano]; 12. Información Poblacional [Población Indígena]; 12. Información Poblacional [Cabeza de hogar]; 12. Información Poblacional [Casado o en Unión libre]; 12. Información Poblacional [Población LGTBIQ+]; 12. Información Poblacional [Población Migrante]; 12. Información Poblacional [Pospenado]; 12. Información Poblacional [Cuidador]; 13. Estrato Socioeconómico"
+COMERCIALIZACION,1,0,13,comercializacion,"CORREO_ELECTRONICO; TIPO_PRODUCTOR; ESTRATEGIA; PUNTO_COMERCIALIZACION; SISBEN_EPS; GRUPO_FAMILIAR; CARACTERIZACION_OFERTA; ACTA COMPROMISO; EXAMEN MEDICO; MANIPULACION_ALIMENTOS; RUT; BANCARIZADO; QR"
+NODOS,1,0,2,nodos,"CEDULA; CANAL_COMERC IALIZACION"
+SERVICIOS,1,0,0,,""
+INDICADORES,1,0,1,indicadores,"GENERICO"
+PLAN ANUAL,1,0,1,indicadores,"PASO A PASO PARA LOS INDICADORES MENSUAL"

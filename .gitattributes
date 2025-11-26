@@ -1,0 +1,25 @@
+# Normaliza textos a LF en Git (Windows-friendly)
+* text=auto eol=lf
+
+# Fuerza LF en código
+*.py  text eol=lf
+*.ts  text eol=lf
+*.tsx text eol=lf
+*.js  text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md  text eol=lf
+
+# Scripts PowerShell con CRLF (opcional)
+*.ps1 text eol=crlf
+
+# No tratar binarios como texto
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.pdf binary
+*.parquet binary
+*.db binary
