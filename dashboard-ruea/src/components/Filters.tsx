@@ -1,120 +1,113 @@
-import { useEffect, useState } from "react";
-import { getFacetasWithFallback as getFacetas } from "../api";
-
+// src/components/Filters.tsx
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  getFacetasWithFallback,
+  type Facetas,
+  type FiltersState,
+} from "../api";
 
 type Props = {
-  values: {
-    corregimiento?: string;
-    vereda?: string;
-    linea_productiva?: string;
-    escolaridad?: string;
-    sexo?: string;
-  };
-  onChange: (patch: Partial<Props["values"]>) => void;
-  onSearch: () => void;
+  value: FiltersState;
+  onChange: (next: FiltersState) => void;
+  enableFallback?: boolean; // no lo usamos, queda por compatibilidad
 };
 
-export default function Filters({ values, onChange, onSearch }: Props) {
-  const [fac, setFac] = useState<{
-    corregimiento: string[];
-    vereda: string[];
-    linea_productiva: string[];
-    escolaridad: string[];
-    sexo: string[];
-  } | null>(null);
+export default function Filters({ value, onChange }: Props) {
+  const [fac, setFac] = useState<Facetas>({
+    corregimiento: [],
+    vereda: [],
+    linea_productiva: [],
+    escolaridad: [],
+    sexo: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string>("");
 
+  // carga facetas en función de los filtros actuales
   useEffect(() => {
-    getFacetas().then(setFac).catch(console.error);
-  }, []);
+    let canceled = false;
+    (async () => {
+      try {
+        setLoading(true); setErr("");
+        // Con fallback: si /facetas falla, calcula desde /ruea
+        const f = await getFacetasWithFallback(value, { sampleLimit: 5000 });
+        if (!canceled) setFac(f);
+      } catch (e: any) {
+        if (!canceled) setErr(e?.message || "No se pudieron cargar las facetas");
+      } finally {
+        if (!canceled) setLoading(false);
+      }
+    })();
+    return () => { canceled = true; };
+  }, [value?.corregimiento, value?.vereda, value?.linea_productiva, value?.escolaridad, value?.sexo]);
 
-  const Input = (p: any) => <input className="border rounded px-2 py-1 w-full" {...p} />;
-  const Select = (p: any) => <select className="border rounded px-2 py-1 w-full" {...p} />;
+  // helpers
+  const onSel = (k: keyof FiltersState) => (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = e.target.value || undefined;
+    const next: FiltersState = { ...value, [k]: v };
+    // si cambias un filtro "padre", limpiamos dependientes débiles
+    if (k === "corregimiento") {
+      next.vereda = undefined;
+    }
+    onChange(next);
+  };
+  const clearAll = () => onChange({});
+
+  // opciones visuales (muestran “Cargando…” y “— Todas —”)
+  const Opts = ({ items }: { items: string[] }) => (
+    <>
+      <option value="">— Todas —</option>
+      {items.map((x) => <option key={x} value={x}>{x}</option>)}
+    </>
+  );
 
   return (
-    <div className="grid gap-3 md:grid-cols-3">
-      <div>
-        <label className="text-sm">Corregimiento</label>
-        {fac ? (
-          <Select
-            value={values.corregimiento || ""}
-            onChange={(e) => onChange({ corregimiento: e.target.value || undefined })}
-          >
-            <option value="">(Todos)</option>
-            {fac.corregimiento.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </Select>
-        ) : <Input placeholder="Cargando..." disabled/>}
+    <section className="card">
+      <div className="flex between mb-2">
+        <h2 className="t-sub">Filtros</h2>
+        <div className="flex gap">
+          <button className="btn" onClick={clearAll}>Limpiar</button>
+        </div>
       </div>
 
-      <div>
-        <label className="text-sm">Vereda</label>
-        {fac ? (
-          <Select
-            value={values.vereda || ""}
-            onChange={(e) => onChange({ vereda: e.target.value || undefined })}
-          >
-            <option value="">(Todas)</option>
-            {fac.vereda.map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
-          </Select>
-        ) : <Input placeholder="Cargando..." disabled/>}
-      </div>
+      {err && <div className="alert">{err}</div>}
 
-      <div>
-        <label className="text-sm">Línea productiva</label>
-        {fac ? (
-          <Select
-            value={values.linea_productiva || ""}
-            onChange={(e) => onChange({ linea_productiva: e.target.value || undefined })}
-          >
-            <option value="">(Todas)</option>
-            {fac.linea_productiva.map((l) => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </Select>
-        ) : <Input placeholder="Cargando..." disabled/>}
-      </div>
+      <div className="grid3">
+        <label className="field">
+          <span>Corregimiento</span>
+          <select className="input" value={value.corregimiento ?? ""} onChange={onSel("corregimiento")} disabled={loading}>
+            {loading ? <option>Cargando…</option> : <Opts items={fac.corregimiento} />}
+          </select>
+        </label>
 
-      <div>
-        <label className="text-sm">Escolaridad</label>
-        {fac ? (
-          <Select
-            value={values.escolaridad || ""}
-            onChange={(e) => onChange({ escolaridad: e.target.value || undefined })}
-          >
-            <option value="">(Todas)</option>
-            {fac.escolaridad.map((e) => (
-              <option key={e} value={e}>{e}</option>
-            ))}
-          </Select>
-        ) : <Input placeholder="Cargando..." disabled/>}
-      </div>
+        <label className="field">
+          <span>Vereda</span>
+          <select className="input" value={value.vereda ?? ""} onChange={onSel("vereda")} disabled={loading || !fac.vereda.length}>
+            {loading ? <option>Cargando…</option> : <Opts items={fac.vereda} />}
+          </select>
+        </label>
 
-      <div>
-        <label className="text-sm">Sexo</label>
-        {fac ? (
-          <Select
-            value={values.sexo || ""}
-            onChange={(e) => onChange({ sexo: e.target.value || undefined })}
-          >
-            <option value="">(Todos)</option>
-            {fac.sexo.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </Select>
-        ) : <Input placeholder="Cargando..." disabled/>}
-      </div>
+        <label className="field">
+          <span>Línea productiva</span>
+          <select className="input" value={value.linea_productiva ?? ""} onChange={onSel("linea_productiva")} disabled={loading}>
+            {loading ? <option>Cargando…</option> : <Opts items={fac.linea_productiva} />}
+          </select>
+        </label>
 
-      <div className="flex items-end">
-        <button
-          className="bg-black text-white px-4 py-2 rounded w-full"
-          onClick={onSearch}
-        >
-          Buscar
-        </button>
+        <label className="field">
+          <span>Escolaridad</span>
+          <select className="input" value={value.escolaridad ?? ""} onChange={onSel("escolaridad")} disabled={loading}>
+            {loading ? <option>Cargando…</option> : <Opts items={fac.escolaridad} />}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>Sexo</span>
+          <select className="input" value={value.sexo ?? ""} onChange={onSel("sexo")} disabled={loading}>
+            {loading ? <option>Cargando…</option> : <Opts items={fac.sexo} />}
+          </select>
+        </label>
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,63 +1,25 @@
-const BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") || "";
+// src/api.ts
+export type OrderDir = "asc" | "desc";
 
-export type RueaItem = Record<string, any>;
-
-export type RueaResponse = {
-  count: number;
-  items: RueaItem[];
-};
-
-export type RueaFilters = {
+export type FiltersState = {
   corregimiento?: string;
   vereda?: string;
   linea_productiva?: string;
   escolaridad?: string;
   sexo?: string;
-  campos?: string;
-  order_by?: string;      // <-- nuevo
-  order_dir?: "asc"|"desc"; // <-- nuevo
+};
+
+export type RueaQuery = FiltersState & {
+  order_by?: string;
+  order_dir?: OrderDir;
   limit?: number;
   offset?: number;
 };
 
-export async function getRueaSummary(filters: RueaFilters) {
-  const res = await fetch(`${BASE}/api/v1/ruea/summary${qs(filters)}`);
-  if (!res.ok) throw new Error("Error obteniendo resumen");
-  return res.json() as Promise<{ total:number; top_corregimiento:{name:string,total:number}[]; top_vereda:{name:string,total:number}[] }>;
-}
+export type RueaItem = Record<string, any>;
 
-
-export async function getFacetas() {
-  const res = await fetch(`${BASE}/api/v1/ruea/facetas`);
-  if (!res.ok) throw new Error("Error obteniendo facetas");
-  return res.json() as Promise<{
-    corregimiento: string[];
-    vereda: string[];
-    linea_productiva: string[];
-    escolaridad: string[];
-    sexo: string[];
-  }>;
-}
-
-function qs(params: Record<string, any>) {
-  const sp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === "") return;
-    sp.set(k, String(v));
-  });
-  const s = sp.toString();
-  return s ? `?${s}` : "";
-}
-
-export async function getRuea(filters: RueaFilters): Promise<RueaResponse> {
-  const res = await fetch(`${BASE}/api/v1/ruea${qs(filters)}`);
-  if (!res.ok) throw new Error("Error obteniendo RUEA");
-  return res.json();
-}
-
-export function buildDownloadUrl(fmt: "csv" | "xlsx", filters: RueaFilters) {
-  return `${BASE}/api/v1/ruea/download.${fmt}${qs(filters)}`;
-}
+type RueaRespA = { total: number; limit: number; offset: number; items: RueaItem[] };
+type RueaRespB = { count: number; items: RueaItem[]; limit?: number; offset?: number };
 
 export type Facetas = {
   corregimiento: string[];
@@ -67,38 +29,88 @@ export type Facetas = {
   sexo: string[];
 };
 
-function uniqSorted(values: (string | undefined | null)[]) {
-  return Array.from(
-    new Set(
-      values
-        .map(v => (v ?? "").toString().toLowerCase().trim())
-        .filter(Boolean)
-    )
-  ).sort();
+const BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? ""; // "" -> usa proxy de Vite
+
+function toQS(params: Record<string, any>) {
+  const u = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && String(v).trim() !== "") u.set(k, String(v));
+  });
+  return u.toString();
 }
 
-/** Intenta /ruea/facetas; si viene vacío o falla, deriva facetas desde una muestra de /ruea */
-export async function getFacetasWithFallback(): Promise<Facetas> {
-  try {
-    const f = await getFacetas();
-    const hasData = Object.values(f).some(arr => Array.isArray(arr) && arr.length > 0);
-    if (hasData) return f;
-  } catch {
-    // sigue al fallback
+async function http<T>(path: string, params?: Record<string, any>): Promise<T> {
+  const qs = params ? `?${toQS(params)}` : "";
+  const url = `${BASE}/api/v1${path}${qs}`;
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) {
+    let detail = "";
+    try { const e = await res.json(); detail = e?.detail ?? ""; } catch {}
+    throw new Error(`HTTP ${res.status} ${res.statusText}${detail ? ` - ${detail}` : ""}`);
   }
-
-  // Fallback: muestra de /ruea (ajusta limit si quieres más)
-  const sample = await getRuea({ limit: 1000 });
-  const items = sample.items || [];
-
-  const take = (k: string) => uniqSorted(items.map((it: any) => it?.[k]));
-  return {
-    corregimiento: take("corregimiento"),
-    vereda: take("vereda"),
-    linea_productiva: take("linea_productiva"),
-    escolaridad: take("escolaridad"),
-    sexo: take("sexo"),
-  };
+  return res.json() as Promise<T>;
 }
 
+// === Endpoints ===
+export async function getRuea(q: RueaQuery) {
+  return http<RueaRespA | RueaRespB>("/ruea", q);
+}
 
+export async function getFacetas(f: FiltersState) {
+  return http<Facetas>("/ruea/facetas", f);
+}
+
+// === Utilidades internas para fallback ===
+function uniqSorted(values: (string | undefined | null)[]): string[] {
+  const set = new Set<string>();
+  for (const v of values) {
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (!s) continue;
+    set.add(s);
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+}
+
+function pick<T extends Record<string, any>>(rows: T[], key: string): string[] {
+  return rows.map(r => {
+    const v = r?.[key];
+    return v == null ? "" : String(v).trim();
+  });
+}
+
+// === Fallback: si /ruea/facetas falla, calculamos desde /ruea ===
+export async function getFacetasWithFallback(
+  f: FiltersState,
+  options?: { sampleLimit?: number }
+): Promise<Facetas> {
+  try {
+    return await getFacetas(f);
+  } catch (e) {
+    // Calcula facetas client-side con una muestra amplia
+    const limit = options?.sampleLimit ?? 5000;
+    const data = await getRuea({ ...f, limit, offset: 0, order_by: "documento", order_dir: "asc" });
+    // @ts-ignore
+    const items: RueaItem[] = (data as any).items ?? [];
+    return {
+      corregimiento: uniqSorted(pick(items, "corregimiento")),
+      vereda: uniqSorted(pick(items, "vereda")),
+      linea_productiva: uniqSorted(pick(items, "linea_productiva")),
+      escolaridad: uniqSorted(pick(items, "escolaridad")),
+      sexo: uniqSorted(pick(items, "sexo")),
+    };
+  }
+}
+
+export type StatItem = { name: string; value: number };
+
+export async function getRueaStats(
+  by: "corregimiento" | "vereda" | "linea_productiva" | "escolaridad" | "sexo",
+  filters: FiltersState,
+  top?: number
+) {
+  const params: any = { ...filters, by };
+  if (top) params.top = top;
+  // reutilizamos http()
+  return http<{ items: StatItem[] }>("/ruea/stats", params);
+}
