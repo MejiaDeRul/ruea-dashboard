@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from typing import Literal
 import pandas as pd
 import io
+import re
 from ..services.duck import Duck
 from ..services.meta import read_meta
 from ..services.cache import set_cache_headers
@@ -350,7 +351,12 @@ def ruea_summary(
         base += " WHERE " + " AND ".join(where)
 
     # total
-    total = con.execute(base.replace("SELECT *", "SELECT COUNT(*)"), params).fetchone()[0]
+    base_no_paging = re.sub(r"\s+ORDER\s+BY\s+.+$", "", base, flags=re.IGNORECASE)
+    base_no_paging = re.sub(r"\s+LIMIT\s+\S+(?:\s+OFFSET\s+\S+)?", "", base_no_paging, flags=re.IGNORECASE)
+    count_sql = f"SELECT COUNT(*) FROM ({base_no_paging}) AS t"
+    row = con.execute(count_sql, params).fetchone()
+    total = int(row[0]) if row else 0
+
 
     # top-5 corregimientos normalizados
     q_top_corr = f"""
